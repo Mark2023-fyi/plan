@@ -50,8 +50,8 @@
             border-radius: 9999px;
             text-transform: uppercase;
         }
-        /* Estilos para el modal */
-        #confirm-modal {
+        /* Estilos para los modales */
+        .modal {
             animation: fadeIn 0.2s ease-out;
         }
     </style>
@@ -60,8 +60,44 @@
 
     <div id="loader" class="loader hidden"></div>
 
+    <!-- Modal de Edición de Tarea -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4 modal">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full card">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Tarea</h3>
+            <form id="edit-task-form" class="space-y-4">
+                <div>
+                    <label for="edit-task-text" class="block mb-2 text-sm font-medium text-gray-600">Nombre de la Tarea</label>
+                    <input type="text" id="edit-task-text" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     <div>
+                        <label for="edit-task-date" class="block mb-2 text-sm font-medium text-gray-600">Fecha</label>
+                        <input type="date" id="edit-task-date" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    </div>
+                    <div>
+                        <label for="edit-task-time" class="block mb-2 text-sm font-medium text-gray-600">Hora</label>
+                        <input type="time" id="edit-task-time" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                     <div>
+                        <label for="edit-task-category" class="block mb-2 text-sm font-medium text-gray-600">Categoría</label>
+                        <select id="edit-task-category" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Personal">Personal</option>
+                            <option value="Trabajo">Trabajo</option>
+                            <option value="Escuela">Escuela</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-4 pt-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal de Confirmación para Borrar -->
-    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4 modal">
         <div class="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center card">
             <h3 class="text-xl font-bold mb-4 text-gray-800">¿Confirmar Eliminación?</h3>
             <p class="text-gray-600 mb-6">Esta acción no se puede deshacer. ¿Estás seguro de que quieres eliminar esta tarea?</p>
@@ -187,10 +223,17 @@
         const loginForm = document.getElementById('login-form');
         const logoutBtn = document.getElementById('logout-btn');
         const logoutSuccessMessage = document.getElementById('logout-success-message');
-        // Modal
+        // Modales
         const confirmModal = document.getElementById('confirm-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const editModal = document.getElementById('edit-modal');
+        const editTaskForm = document.getElementById('edit-task-form');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const editTaskText = document.getElementById('edit-task-text');
+        const editTaskDate = document.getElementById('edit-task-date');
+        const editTaskTime = document.getElementById('edit-task-time');
+        const editTaskCategory = document.getElementById('edit-task-category');
         // Planificador
         const taskInput = document.getElementById('taskInput');
         const dateInput = document.getElementById('dateInput');
@@ -199,8 +242,10 @@
         const addTaskBtn = document.getElementById('addTaskBtn');
         const taskListContainer = document.getElementById('task-list-container');
 
+        let allTasks = [];
         let unsubscribeTasks;
         let taskToDeleteId = null;
+        let taskToEditId = null;
 
         // --- Lógica de Autenticación ---
         onAuthStateChanged(auth, user => {
@@ -231,17 +276,12 @@
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
                 switch (error.code) {
-                    case 'auth/user-not-found':
-                    case 'auth/wrong-password':
-                    case 'auth/invalid-credential':
-                        authError.textContent = 'El correo electrónico o la contraseña son incorrectos.';
-                        break;
+                    case 'auth/user-not-found': case 'auth/wrong-password': case 'auth/invalid-credential':
+                        authError.textContent = 'El correo electrónico o la contraseña son incorrectos.'; break;
                     case 'auth/user-disabled':
-                        authError.textContent = 'Su cuenta ha sido deshabilitada.';
-                        break;
+                        authError.textContent = 'Su cuenta ha sido deshabilitada.'; break;
                     default:
-                        authError.textContent = 'Ocurrió un error inesperado. Por favor, inténtelo de nuevo.';
-                        break;
+                        authError.textContent = 'Ocurrió un error inesperado. Por favor, inténtelo de nuevo.'; break;
                 }
             } finally {
                 loader.classList.add('hidden');
@@ -253,32 +293,54 @@
                 document.getElementById('login-email').value = '';
                 document.getElementById('login-password').value = '';
                 logoutSuccessMessage.classList.remove('hidden');
-                setTimeout(() => {
-                    logoutSuccessMessage.classList.add('hidden');
-                }, 3000);
+                setTimeout(() => { logoutSuccessMessage.classList.add('hidden'); }, 3000);
             });
         });
 
-        // --- Lógica del Modal de Confirmación ---
+        // --- Lógica de Modales ---
         function showConfirmModal(taskId) {
             taskToDeleteId = taskId;
             confirmModal.classList.remove('hidden');
         }
-
         function hideConfirmModal() {
             taskToDeleteId = null;
             confirmModal.classList.add('hidden');
         }
-
         cancelDeleteBtn.addEventListener('click', hideConfirmModal);
-        
         confirmDeleteBtn.addEventListener('click', async () => {
             if (taskToDeleteId) {
-                const user = auth.currentUser;
-                if (user) {
-                    await deleteDoc(doc(db, "users", user.uid, "tasks", taskToDeleteId));
-                }
+                await deleteTask(taskToDeleteId);
                 hideConfirmModal();
+            }
+        });
+
+        function showEditModal(taskId) {
+            taskToEditId = taskId;
+            const task = allTasks.find(t => t.id === taskId);
+            if(task) {
+                editTaskText.value = task.text;
+                editTaskDate.value = task.date;
+                editTaskTime.value = task.time || '';
+                editTaskCategory.value = task.category;
+                editModal.classList.remove('hidden');
+            }
+        }
+        function hideEditModal() {
+            taskToEditId = null;
+            editModal.classList.add('hidden');
+        }
+        cancelEditBtn.addEventListener('click', hideEditModal);
+        editTaskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(taskToEditId) {
+                const updatedData = {
+                    text: editTaskText.value,
+                    date: editTaskDate.value,
+                    time: editTaskTime.value,
+                    category: editTaskCategory.value
+                };
+                await updateTask(taskToEditId, updatedData);
+                hideEditModal();
             }
         });
 
@@ -291,12 +353,10 @@
             if (unsubscribeTasks) unsubscribeTasks();
             
             unsubscribeTasks = onSnapshot(q, (snapshot) => {
-                const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderTasks(tasks);
-                updateDashboard(tasks);
-            }, (error) => {
-                console.error("Error en el listener de Firestore:", error);
-            });
+                allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTasks(allTasks);
+                updateDashboard(allTasks);
+            }, (error) => { console.error("Error en el listener de Firestore:", error); });
         }
         
         function renderTasks(tasks) {
@@ -310,7 +370,7 @@
 
             const categories = ['Personal', 'Trabajo', 'Escuela', 'Otro'];
             categories.forEach(category => {
-                if (groupedTasks[category]) {
+                if (groupedTasks[category] && groupedTasks[category].length > 0) {
                     const tasksInCategory = groupedTasks[category];
                     tasksInCategory.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
 
@@ -324,10 +384,6 @@
                     if (upcomingList) sectionHTML += `<ul class="space-y-3">${upcomingList}</ul>`;
                     if (completedList) sectionHTML += `<h4 class="text-lg font-semibold mt-6 mb-3 text-gray-500">Completadas</h4><ul class="space-y-3">${completedList}</ul>`;
                     
-                    if (!upcomingList && !completedList) {
-                        sectionHTML += `<p class="text-gray-500">No hay tareas en esta categoría.</p>`;
-                    }
-
                     categorySection.innerHTML = sectionHTML;
                     taskListContainer.appendChild(categorySection);
                 }
@@ -335,16 +391,13 @@
 
             // Re-attach event listeners
             taskListContainer.querySelectorAll('.task-checkbox').forEach(box => {
-                box.addEventListener('change', (e) => {
-                    const li = e.target.closest('li');
-                    toggleTaskStatus(li.dataset.id, e.target.checked);
-                });
+                box.addEventListener('change', (e) => toggleTaskStatus(e.target.closest('li').dataset.id, e.target.checked));
+            });
+            taskListContainer.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => showEditModal(e.target.closest('li').dataset.id));
             });
             taskListContainer.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const li = e.target.closest('li');
-                    showConfirmModal(li.dataset.id);
-                });
+                btn.addEventListener('click', (e) => showConfirmModal(e.target.closest('li').dataset.id));
             });
         }
         
@@ -353,53 +406,43 @@
             let formattedTime = '';
             if (task.time) {
                 const [hours, minutes] = task.time.split(':');
-                const h = parseInt(hours, 10);
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                const formattedHour = h % 12 || 12;
-                formattedTime = ` a las ${formattedHour}:${minutes} ${ampm}`;
+                const h = parseInt(hours, 10); const ampm = h >= 12 ? 'PM' : 'AM';
+                const formattedHour = h % 12 || 12; formattedTime = ` a las ${formattedHour}:${minutes} ${ampm}`;
             }
-            return `<li class="task-item bg-gray-50 p-4 rounded-lg flex items-center justify-between shadow-sm" data-id="${task.id}"><div class="flex items-center gap-4"><input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox h-6 w-6 rounded border-gray-300 text-indigo-600 cursor-pointer focus:ring-indigo-500"><div><span class="task-text font-medium ${task.completed ? 'completed' : ''}">${task.text}</span><div class="text-sm text-gray-500 flex items-center flex-wrap gap-2 mt-1"><span>${new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${formattedTime}</span><span class="category-badge ${categoryColors[task.category] || categoryColors['Otro']}">${task.category}</span></div></div></div><button class="delete-btn text-gray-400 hover:text-red-500 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></li>`;
+            return `<li class="task-item bg-gray-50 p-4 rounded-lg flex items-center justify-between shadow-sm" data-id="${task.id}"><div class="flex items-center gap-4"><input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox h-6 w-6 rounded border-gray-300 text-indigo-600 cursor-pointer focus:ring-indigo-500"><div><span class="task-text font-medium ${task.completed ? 'completed' : ''}">${task.text}</span><div class="text-sm text-gray-500 flex items-center flex-wrap gap-2 mt-1"><span>${new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${formattedTime}</span><span class="category-badge ${categoryColors[task.category] || categoryColors['Otro']}">${task.category}</span></div></div></div><div class="flex items-center"><button class="edit-btn text-gray-400 hover:text-indigo-500 transition mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button class="delete-btn text-gray-400 hover:text-red-500 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></li>`;
         }
 
         function updateDashboard(tasks) {
             const pendingTasks = tasks.filter(t => !t.completed);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const todayTasks = pendingTasks.filter(task => {
-                const taskDate = new Date(task.date + 'T00:00:00');
-                return taskDate.getTime() === today.getTime();
-            }).length;
-
-            const overdueTasks = pendingTasks.filter(task => {
-                const taskDate = new Date(task.date + 'T00:00:00');
-                return taskDate < today;
-            }).length;
-
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const todayTasks = pendingTasks.filter(task => new Date(task.date + 'T00:00:00').getTime() === today.getTime()).length;
+            const overdueTasks = pendingTasks.filter(task => new Date(task.date + 'T00:00:00') < today).length;
             document.getElementById('dashboard-today').textContent = todayTasks;
             document.getElementById('dashboard-pending').textContent = pendingTasks.length;
             document.getElementById('dashboard-overdue').textContent = overdueTasks;
         }
 
+        // --- Funciones CRUD de Tareas ---
         async function handleAddTask() {
-            const text = taskInput.value.trim();
-            const date = dateInput.value;
-            const time = timeInput.value;
-            const category = categoryInput.value;
+            const text = taskInput.value.trim(); const date = dateInput.value;
+            const time = timeInput.value; const category = categoryInput.value;
             const user = auth.currentUser;
-
             if (text && date && user) {
                 await addDoc(collection(db, "users", user.uid, "tasks"), { text, date, time, category, completed: false });
                 taskInput.value = '';
             }
         }
-        
         async function toggleTaskStatus(taskId, isCompleted) {
             const user = auth.currentUser;
-            if (user) {
-                const taskRef = doc(db, "users", user.uid, "tasks", taskId);
-                await updateDoc(taskRef, { completed: isCompleted });
-            }
+            if (user) await updateDoc(doc(db, "users", user.uid, "tasks", taskId), { completed: isCompleted });
+        }
+        async function updateTask(taskId, updatedData) {
+            const user = auth.currentUser;
+            if(user) await updateDoc(doc(db, "users", user.uid, "tasks", taskId), updatedData);
+        }
+        async function deleteTask(taskId) {
+            const user = auth.currentUser;
+            if (user) await deleteDoc(doc(db, "users", user.uid, "tasks", taskId));
         }
         
         function clearTasksUI() {
