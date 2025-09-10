@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planificador Personal Avanzado</title>
+    <title>Planificador Personal Inteligente</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,10 +21,9 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .task-item, .auth-form, .card, #logout-success-message {
+        .task-item, .auth-form, .card, .alert-message {
             animation: fadeIn 0.4s ease-out;
         }
-        /* Estilos para el spinner de carga */
         .loader {
             border: 4px solid #e5e7eb;
             border-top: 4px solid #4f46e5; /* indigo-600 */
@@ -35,8 +34,7 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            margin-left: -20px;
-            margin-top: -20px;
+            transform: translate(-50%, -50%);
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -50,9 +48,17 @@
             border-radius: 9999px;
             text-transform: uppercase;
         }
-        /* Estilos para los modales */
         .modal {
             animation: fadeIn 0.2s ease-out;
+        }
+        /* Indicadores de Urgencia */
+        .task-item.overdue {
+            background-color: #fee2e2; /* red-100 */
+            border-left: 5px solid #ef4444; /* red-500 */
+        }
+        .task-item.today {
+            background-color: #ffedd5; /* orange-100 */
+            border-left: 5px solid #f97316; /* orange-500 */
         }
     </style>
 </head>
@@ -62,7 +68,7 @@
 
     <!-- Modal de Edición de Tarea -->
     <div id="edit-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4 modal">
-        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full card">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl max-w-lg w-full card">
             <h3 class="text-2xl font-bold mb-6 text-gray-800">Editar Tarea</h3>
             <form id="edit-task-form" class="space-y-4">
                 <div>
@@ -100,7 +106,7 @@
     <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4 modal">
         <div class="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center card">
             <h3 class="text-xl font-bold mb-4 text-gray-800">¿Confirmar Eliminación?</h3>
-            <p class="text-gray-600 mb-6">Esta acción no se puede deshacer. ¿Estás seguro de que quieres eliminar esta tarea?</p>
+            <p class="text-gray-600 mb-6">Esta acción no se puede deshacer. ¿Estás seguro?</p>
             <div class="flex justify-center gap-4">
                 <button id="cancel-delete-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition">Cancelar</button>
                 <button id="confirm-delete-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition">Eliminar</button>
@@ -109,11 +115,11 @@
     </div>
 
     <!-- Contenedor de Autenticación -->
-    <div id="auth-container" class="container mx-auto max-w-md p-8 mt-10">
-        <div id="logout-success-message" class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-6 text-center">
+    <div id="auth-container" class="container mx-auto max-w-md p-4 sm:p-8 mt-10">
+        <div id="logout-success-message" class="hidden alert-message bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-6 text-center">
             <span class="block sm:inline">¡Sesión cerrada exitosamente!</span>
         </div>
-        <div class="auth-form bg-white p-8 rounded-2xl shadow-xl">
+        <div class="auth-form bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
             <h2 class="text-3xl font-bold text-center text-indigo-600 mb-8">Iniciar Sesión</h2>
             <form id="login-form">
                 <div class="mb-4">
@@ -135,70 +141,62 @@
 
     <!-- Contenedor del Planificador -->
     <div id="planner-container" class="hidden container mx-auto p-4 md:p-8 max-w-5xl">
-         <header class="flex flex-wrap justify-between items-center mb-8 gap-4">
+         <header class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
             <div>
-                <h1 class="text-4xl md:text-5xl font-bold text-indigo-600">Mi Planificador</h1>
-                <p id="user-email" class="text-gray-500 mt-2"></p>
+                <h1 class="text-3xl md:text-5xl font-bold text-indigo-600">Mi Planificador</h1>
+                <p id="user-email" class="text-gray-500 mt-2 text-center sm:text-left"></p>
             </div>
-            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition">Cerrar Sesión</button>
+            <button id="logout-btn" class="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition">Cerrar Sesión</button>
         </header>
+
+        <div id="task-success-message" class="hidden alert-message bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg relative mb-6 text-center">
+             <span class="block sm:inline">¡Tarea añadida exitosamente!</span>
+        </div>
 
         <!-- Dashboard -->
         <div id="dashboard-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="card bg-white p-6 rounded-2xl shadow-xl text-center">
-                <h3 class="text-lg font-semibold text-gray-500">Tareas para Hoy</h3>
-                <p id="dashboard-today" class="text-4xl font-bold text-indigo-600">0</p>
+            <div class="card bg-white p-6 rounded-2xl shadow-xl">
+                <h3 class="text-lg font-semibold text-gray-500 text-center">Próxima Tarea</h3>
+                <div id="dashboard-next-task" class="text-center mt-2">
+                    <p class="text-gray-400">¡Ninguna tarea pendiente!</p>
+                </div>
             </div>
             <div class="card bg-white p-6 rounded-2xl shadow-xl text-center">
                 <h3 class="text-lg font-semibold text-gray-500">Total Pendientes</h3>
                 <p id="dashboard-pending" class="text-4xl font-bold text-indigo-600">0</p>
             </div>
-            <div class="card bg-white p-6 rounded-2xl shadow-xl text-center">
-                <h3 class="text-lg font-semibold text-gray-500">Vencidas</h3>
-                <p id="dashboard-overdue" class="text-4xl font-bold text-red-500">0</p>
+            <div class="card bg-white p-6 rounded-2xl shadow-xl">
+                <h3 class="text-lg font-semibold text-gray-500 text-center">Vencidas (<span id="dashboard-overdue-count">0</span>)</h3>
+                <div id="dashboard-overdue" class="text-center mt-2">
+                     <p class="text-gray-400">¡Ninguna tarea vencida!</p>
+                </div>
             </div>
         </div>
 
         <div class="card bg-white p-6 rounded-2xl shadow-xl mb-8">
             <h2 class="text-2xl font-semibold mb-4 text-gray-800">Añadir Nueva Tarea</h2>
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <input type="text" id="taskInput" placeholder="¿Qué necesitas hacer?" class="md:col-span-2 w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <input type="date" id="dateInput" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <input type="time" id="timeInput" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <select id="categoryInput" class="w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="Personal">Personal</option>
-                    <option value="Trabajo">Trabajo</option>
-                    <option value="Escuela">Escuela</option>
-                    <option value="Otro">Otro</option>
-                </select>
             </div>
+             <select id="categoryInput" class="mt-4 w-full bg-gray-100 text-gray-800 rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="Personal">Personal</option>
+                <option value="Trabajo">Trabajo</option>
+                <option value="Escuela">Escuela</option>
+                <option value="Otro">Otro</option>
+            </select>
              <button id="addTaskBtn" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition">Añadir Tarea</button>
         </div>
         
-        <div id="task-list-container" class="space-y-8">
-            <!-- Las categorías y tareas se insertarán aquí dinámicamente -->
-        </div>
+        <div id="task-list-container" class="space-y-8"></div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { 
-            getAuth,
-            signInWithEmailAndPassword, 
-            onAuthStateChanged,
-            signOut
-        } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            query, 
-            onSnapshot,
-            doc,
-            updateDoc,
-            deleteDoc
-        } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyA_LRcHCkClvlHeqDPTSKfGa5gY2uiuZ5E",
@@ -214,7 +212,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- Elementos del DOM ---
+        // --- DOM Elements ---
         const loader = document.getElementById('loader');
         const authContainer = document.getElementById('auth-container');
         const plannerContainer = document.getElementById('planner-container');
@@ -223,7 +221,8 @@
         const loginForm = document.getElementById('login-form');
         const logoutBtn = document.getElementById('logout-btn');
         const logoutSuccessMessage = document.getElementById('logout-success-message');
-        // Modales
+        const taskSuccessMessage = document.getElementById('task-success-message');
+        // Modals
         const confirmModal = document.getElementById('confirm-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
@@ -234,7 +233,7 @@
         const editTaskDate = document.getElementById('edit-task-date');
         const editTaskTime = document.getElementById('edit-task-time');
         const editTaskCategory = document.getElementById('edit-task-category');
-        // Planificador
+        // Planner
         const taskInput = document.getElementById('taskInput');
         const dateInput = document.getElementById('dateInput');
         const timeInput = document.getElementById('timeInput');
@@ -246,8 +245,9 @@
         let unsubscribeTasks;
         let taskToDeleteId = null;
         let taskToEditId = null;
+        let dashboardInterval = null;
 
-        // --- Lógica de Autenticación ---
+        // --- Auth Logic ---
         onAuthStateChanged(auth, user => {
             loader.classList.remove('hidden');
             authError.textContent = '';
@@ -256,11 +256,17 @@
                 plannerContainer.classList.remove('hidden');
                 userEmailDisplay.textContent = `Sesión iniciada como: ${user.email}`;
                 loadTasks(user.uid);
+                if (dashboardInterval) clearInterval(dashboardInterval);
+                dashboardInterval = setInterval(() => {
+                    renderTasks(allTasks); // Re-render tasks to update countdowns
+                    updateDashboard(allTasks);
+                }, 60000); // Update every minute
             } else {
                 plannerContainer.classList.add('hidden');
                 authContainer.classList.remove('hidden');
                 clearTasksUI();
                 if(unsubscribeTasks) unsubscribeTasks();
+                if (dashboardInterval) clearInterval(dashboardInterval);
             }
             loader.classList.add('hidden');
         });
@@ -277,11 +283,11 @@
             } catch (error) {
                 switch (error.code) {
                     case 'auth/user-not-found': case 'auth/wrong-password': case 'auth/invalid-credential':
-                        authError.textContent = 'El correo electrónico o la contraseña son incorrectos.'; break;
+                        authError.textContent = 'El correo o la contraseña son incorrectos.'; break;
                     case 'auth/user-disabled':
                         authError.textContent = 'Su cuenta ha sido deshabilitada.'; break;
                     default:
-                        authError.textContent = 'Ocurrió un error inesperado. Por favor, inténtelo de nuevo.'; break;
+                        authError.textContent = 'Ocurrió un error inesperado.'; break;
                 }
             } finally {
                 loader.classList.add('hidden');
@@ -297,7 +303,7 @@
             });
         });
 
-        // --- Lógica de Modales ---
+        // --- Modal Logic ---
         function showConfirmModal(taskId) {
             taskToDeleteId = taskId;
             confirmModal.classList.remove('hidden');
@@ -333,19 +339,19 @@
         editTaskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if(taskToEditId) {
-                const updatedData = {
-                    text: editTaskText.value,
-                    date: editTaskDate.value,
-                    time: editTaskTime.value,
-                    category: editTaskCategory.value
-                };
+                const updatedData = { text: editTaskText.value, date: editTaskDate.value, time: editTaskTime.value, category: editTaskCategory.value };
                 await updateTask(taskToEditId, updatedData);
                 hideEditModal();
             }
         });
 
-        // --- Lógica del Planificador ---
-        dateInput.value = new Date().toISOString().split('T')[0];
+        // --- Planner Logic ---
+        function setSmartDefaults() {
+            dateInput.value = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const nextHour = (now.getHours() + 1) % 24;
+            timeInput.value = `${String(nextHour).padStart(2, '0')}:00`;
+        }
         
         async function loadTasks(userId) {
             const tasksCollection = collection(db, "users", userId, "tasks");
@@ -356,7 +362,7 @@
                 allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderTasks(allTasks);
                 updateDashboard(allTasks);
-            }, (error) => { console.error("Error en el listener de Firestore:", error); });
+            }, (error) => { console.error("Error fetching tasks:", error); });
         }
         
         function renderTasks(tasks) {
@@ -389,40 +395,102 @@
                 }
             });
 
-            // Re-attach event listeners
-            taskListContainer.querySelectorAll('.task-checkbox').forEach(box => {
-                box.addEventListener('change', (e) => toggleTaskStatus(e.target.closest('li').dataset.id, e.target.checked));
-            });
-            taskListContainer.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => showEditModal(e.target.closest('li').dataset.id));
-            });
-            taskListContainer.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => showConfirmModal(e.target.closest('li').dataset.id));
-            });
+            taskListContainer.querySelectorAll('.task-checkbox').forEach(box => box.addEventListener('change', (e) => toggleTaskStatus(e.target.closest('li').dataset.id, e.target.checked)));
+            taskListContainer.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => showEditModal(e.target.closest('li').dataset.id)));
+            taskListContainer.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => showConfirmModal(e.target.closest('li').dataset.id)));
+        }
+        
+        function formatTimeDifference(targetDate) {
+            const now = new Date();
+            const diff = targetDate - now;
+            const isPast = diff < 0;
+            const absDiff = Math.abs(diff);
+
+            const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((absDiff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((absDiff / (1000 * 60)) % 60);
+
+            const prefix = isPast ? 'Hace' : 'En';
+            
+            if (days > 1) return `${prefix} ${days} días`;
+            if (days === 1) return isPast ? 'Hace 1 día' : 'Mañana';
+            if (hours > 0) return `${prefix} ${hours}h y ${minutes}m`;
+            if (minutes > 1) return `${prefix} ${minutes} minutos`;
+            return isPast ? 'Venció hace un momento' : 'Vence en menos de un minuto';
+        }
+
+        function updateDashboard(tasks) {
+            const pendingTasks = tasks.filter(t => !t.completed);
+            const now = new Date();
+
+            const upcomingTasks = pendingTasks
+                .map(t => ({ ...t, dateTime: new Date(`${t.date}T${t.time || '23:59'}`) }))
+                .filter(t => t.dateTime > now)
+                .sort((a, b) => a.dateTime - b.dateTime);
+
+            const nextTaskDisplay = document.getElementById('dashboard-next-task');
+            if (upcomingTasks.length > 0) {
+                const nextTask = upcomingTasks[0];
+                nextTaskDisplay.innerHTML = `<p class="font-bold text-lg text-indigo-600 break-words">${nextTask.text}</p><p class="text-gray-500 text-sm mt-1">${formatTimeDifference(nextTask.dateTime)}</p>`;
+            } else {
+                nextTaskDisplay.innerHTML = `<p class="text-gray-400">¡Ninguna tarea pendiente!</p>`;
+            }
+            
+            document.getElementById('dashboard-pending').textContent = pendingTasks.length;
+
+            const overdueTasks = pendingTasks
+                .map(t => ({ ...t, dateTime: new Date(`${t.date}T${t.time || '23:59'}`) }))
+                .filter(t => t.dateTime < now)
+                .sort((a, b) => a.dateTime - b.dateTime);
+            
+            document.getElementById('dashboard-overdue-count').textContent = overdueTasks.length;
+            const overdueDisplay = document.getElementById('dashboard-overdue');
+            if(overdueTasks.length > 0) {
+                const oldestOverdue = overdueTasks[0];
+                overdueDisplay.innerHTML = `<p class="font-bold text-lg text-red-500 break-words">${oldestOverdue.text}</p><p class="text-gray-500 text-sm mt-1">La más antigua venció ${formatTimeDifference(oldestOverdue.dateTime).toLowerCase()}</p>`;
+            } else {
+                overdueDisplay.innerHTML = `<p class="text-gray-400">¡Ninguna tarea vencida!</p>`;
+            }
         }
         
         function createTaskElement(task) {
             const categoryColors = {'Personal': 'bg-blue-100 text-blue-800','Trabajo': 'bg-purple-100 text-purple-800','Escuela': 'bg-green-100 text-green-800','Otro': 'bg-gray-200 text-gray-800'};
+            
+            const taskDateTime = new Date(`${task.date}T${task.time || '23:59'}`);
             let formattedTime = '';
             if (task.time) {
                 const [hours, minutes] = task.time.split(':');
                 const h = parseInt(hours, 10); const ampm = h >= 12 ? 'PM' : 'AM';
                 const formattedHour = h % 12 || 12; formattedTime = ` a las ${formattedHour}:${minutes} ${ampm}`;
             }
-            return `<li class="task-item bg-gray-50 p-4 rounded-lg flex items-center justify-between shadow-sm" data-id="${task.id}"><div class="flex items-center gap-4"><input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox h-6 w-6 rounded border-gray-300 text-indigo-600 cursor-pointer focus:ring-indigo-500"><div><span class="task-text font-medium ${task.completed ? 'completed' : ''}">${task.text}</span><div class="text-sm text-gray-500 flex items-center flex-wrap gap-2 mt-1"><span>${new Date(task.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${formattedTime}</span><span class="category-badge ${categoryColors[task.category] || categoryColors['Otro']}">${task.category}</span></div></div></div><div class="flex items-center"><button class="edit-btn text-gray-400 hover:text-indigo-500 transition mr-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button class="delete-btn text-gray-400 hover:text-red-500 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></li>`;
-        }
 
-        function updateDashboard(tasks) {
-            const pendingTasks = tasks.filter(t => !t.completed);
+            const now = new Date();
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            const todayTasks = pendingTasks.filter(task => new Date(task.date + 'T00:00:00').getTime() === today.getTime()).length;
-            const overdueTasks = pendingTasks.filter(task => new Date(task.date + 'T00:00:00') < today).length;
-            document.getElementById('dashboard-today').textContent = todayTasks;
-            document.getElementById('dashboard-pending').textContent = pendingTasks.length;
-            document.getElementById('dashboard-overdue').textContent = overdueTasks;
+            const taskDateOnly = new Date(task.date + 'T00:00:00');
+            
+            let urgencyClass = '';
+            let timeDiffHtml = '';
+
+            if (!task.completed) {
+                if (taskDateTime < now) urgencyClass = 'overdue';
+                else if (taskDateOnly.getTime() === today.getTime()) urgencyClass = 'today';
+                
+                const timeDiffText = formatTimeDifference(taskDateTime);
+                let timeDiffColor = 'text-gray-500';
+                if(urgencyClass === 'overdue') timeDiffColor = 'text-red-600';
+                else if (urgencyClass === 'today') timeDiffColor = 'text-orange-600';
+                timeDiffHtml = `<span class="font-semibold ${timeDiffColor}">(${timeDiffText})</span>`;
+            }
+
+            return `<li class="task-item ${urgencyClass} bg-white p-4 rounded-lg flex items-center justify-between shadow-sm" data-id="${task.id}"><div class="flex items-center gap-4 flex-grow min-w-0"><input type="checkbox" ${task.completed ? 'checked' : ''} class="task-checkbox h-6 w-6 rounded border-gray-300 text-indigo-600 cursor-pointer focus:ring-indigo-500 flex-shrink-0"><div><span class="task-text font-medium break-words ${task.completed ? 'completed' : ''}">${task.text}</span><div class="text-sm text-gray-500 flex items-center flex-wrap gap-x-2 gap-y-1 mt-1"><span>${taskDateOnly.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${formattedTime}</span><span class="category-badge ${categoryColors[task.category] || categoryColors['Otro']}">${task.category}</span>${timeDiffHtml}</div></div></div><div class="flex items-center flex-shrink-0 ml-2"><button class="edit-btn text-gray-400 hover:text-indigo-500 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button><button class="delete-btn text-gray-400 hover:text-red-500 transition p-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></li>`;
         }
 
-        // --- Funciones CRUD de Tareas ---
+        function showTaskSuccessMessage() {
+            taskSuccessMessage.classList.remove('hidden');
+            setTimeout(() => { taskSuccessMessage.classList.add('hidden'); }, 3000);
+        }
+
+        // --- CRUD Functions ---
         async function handleAddTask() {
             const text = taskInput.value.trim(); const date = dateInput.value;
             const time = timeInput.value; const category = categoryInput.value;
@@ -430,6 +498,9 @@
             if (text && date && user) {
                 await addDoc(collection(db, "users", user.uid, "tasks"), { text, date, time, category, completed: false });
                 taskInput.value = '';
+                taskInput.focus();
+                setSmartDefaults();
+                showTaskSuccessMessage();
             }
         }
         async function toggleTaskStatus(taskId, isCompleted) {
@@ -447,13 +518,18 @@
         
         function clearTasksUI() {
              taskListContainer.innerHTML = '';
-             document.getElementById('dashboard-today').textContent = 0;
              document.getElementById('dashboard-pending').textContent = 0;
-             document.getElementById('dashboard-overdue').textContent = 0;
+             const nextTaskDisplay = document.getElementById('dashboard-next-task');
+             nextTaskDisplay.innerHTML = `<p class="text-gray-400">¡Ninguna tarea pendiente!</p>`;
+             const overdueDisplay = document.getElementById('dashboard-overdue');
+             overdueDisplay.innerHTML = `<p class="text-gray-400">¡Ninguna tarea vencida!</p>`;
+             document.getElementById('dashboard-overdue-count').textContent = 0;
         }
 
         addTaskBtn.addEventListener('click', handleAddTask);
         taskInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleAddTask(); });
+
+        setSmartDefaults();
     </script>
 </body>
 </html>
